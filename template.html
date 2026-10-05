@@ -24,7 +24,7 @@
 .gc .row{font-size:12px;color:#555;display:flex;justify-content:space-between;margin-top:4px}.gc .row b{color:#222;font-weight:500}
 .gc .cap{font-size:10px;color:#888;display:flex;justify-content:space-between;margin-top:-4px}
 .note{font-size:11px;color:#777;margin-top:12px}
-@media(max-width:760px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.left{grid-row:auto}}
+.grid>*{min-width:0}.full{grid-column:1 / span 3}canvas{max-width:100%}@media(max-width:760px){body{padding:6px!important}.dash{padding:12px;border-radius:12px}.dash h1{font-size:18px}.grid{grid-template-columns:minmax(0,1fr)}.wide,.full{grid-column:auto!important}.left{grid-row:auto}.kpi{min-height:0;padding:10px 0}.kpi .v{font-size:26px}.ch{height:200px}.acards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.gc{padding:10px}.gc .big{font-size:20px}.gc .row{flex-direction:column;align-items:flex-end;gap:0}.gc .row span{align-self:flex-start}.filters{gap:8px}.fbox{min-width:0}.tab{padding:5px 9px}}@media(max-width:380px){.acards{grid-template-columns:minmax(0,1fr)}}
 </style>
 <div class="dash">
 <h1>Portfolio Dashboard</h1>
@@ -42,8 +42,8 @@
  <div class="card"><h3>Change in value per period (&#3647;)</h3><div class="ch"><canvas id="c1"></canvas></div></div>
  <div class="card"><h3>Portfolio allocation (latest value)</h3><div class="ch"><canvas id="c2"></canvas></div></div>
  <div class="card wide"><h3>Total value vs cost basis (&#3647;)</h3><div class="ch" style="height:240px"><canvas id="c3"></canvas></div></div>
- <div style="grid-column:1 / span 3"><div class="acards" id="acards"></div></div>
- <div class="card" style="grid-column:1 / span 3"><h3>P/L by asset category, indexed to cost basis (100 = break-even) - hover for amounts</h3><div class="ch" style="height:320px"><canvas id="idx"></canvas></div></div>
+ <div class="full"><div class="acards" id="acards"></div></div>
+ <div class="card full"><h3>P/L by asset category, indexed to cost basis (100 = break-even) - hover for amounts</h3><div class="ch" style="height:320px"><canvas id="idx"></canvas></div></div>
 </div>
 <div class="note">__UPDATED__ Amounts are shown in THB (primary) with USD alongside; history is converted at the current rate (__RATE__ THB/USD) since daily rates are not stored. Cost basis from the sheet's COST BASIS section. Cash(THB) is always at par (P/L 0).</div>
 </div>
@@ -68,7 +68,7 @@ function tb(n){return B+f(Math.abs(n),0)}
 function ub(n){return '$'+f(Math.abs(n/RATE),2)}
 var ch={};
 function mkc(id,cfg){if(ch[id]){ch[id].destroy()}ch[id]=new Chart(document.getElementById(id).getContext('2d'),cfg)}
-var opt={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}}},scales:{x:{ticks:{font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{display:false}},y:{ticks:{font:{size:10},callback:function(x){return f(x,0)}}}}};
+var opt={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}}},scales:{x:{ticks:{font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:(window.innerWidth<600?5:8)},grid:{display:false}},y:{ticks:{font:{size:10},callback:function(x){return f(x,0)}}}}};
 var needle={id:'needle',afterDatasetsDraw:function(c2){var m=c2.getDatasetMeta(0).data[0],x=c2.ctx,cx=m.x,cy=m.y,r=m.outerRadius,vv=c2.config.options.plugins.needle.v;var lo=c2.config.options.plugins.needle.lo,hi=c2.config.options.plugins.needle.hi;var p=(Math.max(lo,Math.min(hi,vv))-lo)/(hi-lo),a=Math.PI+p*Math.PI;x.save();x.strokeStyle='#222';x.lineWidth=3;x.beginPath();x.moveTo(cx,cy);x.lineTo(cx+Math.cos(a)*(r-4),cy+Math.sin(a)*(r-4));x.stroke();x.fillStyle='#222';x.beginPath();x.arc(cx,cy,5,0,2*Math.PI);x.fill();x.restore()}};
 function build(r){
  document.getElementById('rl').textContent={day:'Day (30d)',week:'Month (30 weeks)',month:'Year (12 months)',all:'All (max 60 months)'}[r];
@@ -93,7 +93,7 @@ function build(r){
  // c2 doughnut
  var cats=[['Gold','gold','#d4a017'],['Crypto','crypto','#e67e22'],['Stablecoin','stablecoin','#16a765'],['Stocks','stocks','#2e86de'],['Cash','cash','#a0a8b5']];
  var tot5=cats.reduce(function(a,c){return a+last[c[1]]},0);
- mkc('c2',{type:'doughnut',data:{labels:cats.map(function(c){return c[0]}),datasets:[{data:cats.map(function(c){return Math.round(last[c[1]])}),backgroundColor:cats.map(function(c){return c[2]}),borderColor:'#fff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){var x=c.parsed;return c.label+': '+B+f(x,0)+' ('+(x/tot5*100).toFixed(1)+'%)  $'+f(x/RATE,2)}}}}}});
+ mkc('c2',{type:'doughnut',data:{labels:cats.map(function(c){return c[0]}),datasets:[{data:cats.map(function(c){return Math.round(last[c[1]])}),backgroundColor:cats.map(function(c){return c[2]}),borderColor:'#fff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:(window.innerWidth<600?'bottom':'right'),labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){var x=c.parsed;return c.label+': '+B+f(x,0)+' ('+(x/tot5*100).toFixed(1)+'%)  $'+f(x/RATE,2)}}}}}});
  // c3
  mkc('c3',{type:'line',data:{labels:L,datasets:[{label:'Total value',data:v.map(function(d){return Math.round(d.total)}),borderColor:'#3a9a4a',backgroundColor:'#3a9a4a33',fill:true,tension:.35,pointRadius:2,borderWidth:2},{label:'Cost basis',data:L.map(function(){return Math.round(CB0.thb)}),borderColor:'#c0392b',borderDash:[6,4],fill:false,pointRadius:0,borderWidth:2}]},options:Object.assign({},opt,{plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+B+f(c.parsed.y,0)+'  ($'+f(c.parsed.y/RATE,2)+')'}}}}})});
  // gauges
