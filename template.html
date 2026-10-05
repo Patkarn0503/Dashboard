@@ -23,7 +23,7 @@
 .gc .gw{position:relative;height:120px}.gc .big{font-size:26px;font-weight:700;margin-top:-6px}
 .gc .row{font-size:12px;color:#555;display:flex;justify-content:space-between;margin-top:4px}.gc .row b{color:#222;font-weight:500}
 .gc .cap{font-size:10px;color:#888;display:flex;justify-content:space-between;margin-top:-4px}
-.note{font-size:11px;color:#777;margin-top:12px}
+.idxinfo{margin-top:10px;border-top:1px solid #eef0f3;padding-top:8px;font-size:12px}.idxinfo .d0{font-weight:700;margin-bottom:4px;color:#333}.idxinfo .ir{display:grid;grid-template-columns:auto 1fr;gap:0 8px;padding:5px 0;border-bottom:1px solid #f3f4f6}.idxinfo .ir .a{font-weight:600}.idxinfo .ir .b{color:#666;grid-column:2}.idxinfo .hint{color:#999;font-size:11px;margin-top:4px}.note{font-size:11px;color:#777;margin-top:12px}
 .grid>*{min-width:0}.full{grid-column:1 / span 3}canvas{max-width:100%}@media(max-width:760px){body{padding:6px!important}.dash{padding:12px;border-radius:12px}.dash h1{font-size:18px}.grid{grid-template-columns:minmax(0,1fr)}.wide,.full{grid-column:auto!important}.left{grid-row:auto}.kpi{min-height:0;padding:10px 0}.kpi .v{font-size:26px}.ch{height:200px}.acards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.gc{padding:10px}.gc .big{font-size:20px}.gc .row{flex-direction:column;align-items:flex-end;gap:0}.gc .row span{align-self:flex-start}.filters{gap:8px}.fbox{min-width:0}.tab{padding:5px 9px}}@media(max-width:380px){.acards{grid-template-columns:minmax(0,1fr)}}
 </style>
 <div class="dash">
@@ -43,7 +43,7 @@
  <div class="card"><h3>Portfolio allocation (latest value)</h3><div class="ch"><canvas id="c2"></canvas></div></div>
  <div class="card wide"><h3>Total value vs cost basis (&#3647;)</h3><div class="ch" style="height:240px"><canvas id="c3"></canvas></div></div>
  <div class="full"><div class="acards" id="acards"></div></div>
- <div class="card full"><h3>P/L by asset category, indexed to cost basis (100 = break-even) - hover for amounts</h3><div class="ch" style="height:320px"><canvas id="idx"></canvas></div></div>
+ <div class="card full"><h3>P/L by asset category, indexed to cost basis (100 = break-even) - hover for amounts</h3><div class="ch" style="height:320px"><canvas id="idx"></canvas></div><div id="idxinfo" class="idxinfo" style="display:none"></div></div>
 </div>
 <div class="note">__UPDATED__ Amounts are shown in THB (primary) with USD alongside; history is converted at the current rate (__RATE__ THB/USD) since daily rates are not stored. Cost basis from the sheet's COST BASIS section. Cash(THB) is always at par (P/L 0).</div>
 </div>
@@ -103,10 +103,15 @@ function build(r){
   html+='<div class="gc"><div class="n"><i class="dot" style="background:'+cols[q]+'"></i>'+n+'</div><div class="gw"><canvas id="gg'+q+'"></canvas></div><div class="cap"><span>-'+Math.min(hw,100)+'%</span><span></span><span>+'+hw+'%</span></div><div class="big '+c+'">'+sg(pl)+Math.abs(pl/cost*100).toFixed(2)+'%</div><div class="'+c+'" style="font-size:13px;margin-bottom:6px">'+sg(pl)+B+f(Math.abs(pl),0)+' ('+sg(pl)+'$'+f(Math.abs(pl/RATE),2)+')</div><div class="row"><span>Value</span><b>'+B+f(val,0)+' ($'+f(val/RATE,2)+')</b></div><div class="row"><span>Cost basis</span><b>'+B+f(cost,0)+' ($'+f(cost/RATE,2)+')</b></div></div>';});
  document.getElementById('acards').innerHTML=html;
  names.forEach(function(n,q){var vv=last[keys[q]]/ckT[q]*100,hw2=HW;mkc('gg'+q,{type:'doughnut',data:{labels:['below cost','above cost'],datasets:[{data:[Math.min(hw2,100),hw2],backgroundColor:['#f3b5b5','#b7dcb7'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,rotation:-90,circumference:180,cutout:'68%',plugins:{legend:{display:false},tooltip:{enabled:false},needle:{v:vv,lo:Math.max(0,100-hw2),hi:100+hw2}}},plugins:[needle]})});
+ var touch=window.matchMedia('(pointer:coarse)').matches||window.innerWidth<760;
+ function fillInfo(i){var el=document.getElementById('idxinfo');if(!el)return;el.style.display='block';var h='<div class="d0">'+L[i]+'</div>';
+  names.forEach(function(n,k){var val=v[i][keys[k]],cost=ckT[k],pl=val-cost;h+='<div class="ir"><span class="a"><i class="dot" style="background:'+cols[k]+'"></i> '+n+': '+(val/cost*100).toFixed(1)+' ('+sg(pl)+Math.abs(pl/cost*100).toFixed(2)+'%)</span><span class="b '+cls(pl)+'">Cost '+B+f(cost,0)+' | P/L '+sg(pl)+B+f(Math.abs(pl),0)+' / '+sg(pl)+'$'+f(Math.abs(pl/RATE),2)+'</span></div>'});
+  h+='<div class="hint">Touch the chart to see another date</div>';el.innerHTML=h}
  // indexed line
  var ds=names.map(function(n,i){return{label:n,data:v.map(function(d){return +(d[keys[i]]/ckT[i]*100).toFixed(2)}),borderColor:cols[i],backgroundColor:cols[i],tension:.3,pointRadius:2,pointHoverRadius:5,borderWidth:2}});
  ds.push({label:'Break-even (100)',data:L.map(function(){return 100}),borderColor:'#7f8c8d',borderDash:[6,4],pointRadius:0,borderWidth:2,fill:false});
- mkc('idx',{type:'line',data:{labels:L,datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}},tooltip:{filter:function(c){return c.datasetIndex<4},callbacks:{label:function(c){var i=c.dataIndex,k=c.datasetIndex,val=v[i][keys[k]],cost=ckT[k],pl=val-cost;return [names[k]+': '+c.parsed.y.toFixed(1)+' ('+sg(pl)+Math.abs(pl/cost*100).toFixed(2)+'%)','   Cost '+B+f(cost,0)+'  |  P/L '+sg(pl)+B+f(Math.abs(pl),0)+' / '+sg(pl)+'$'+f(Math.abs(pl/RATE),2)]}}}},scales:{x:opt.scales.x,y:{title:{display:true,text:'% of cost basis (100 = break-even)'},ticks:{font:{size:10}}}}}});
+ mkc('idx',{type:'line',data:{labels:L,datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}},tooltip:touch?{enabled:false,external:function(c){var t=c.tooltip;if(!t||t.opacity===0||!t.dataPoints||!t.dataPoints.length)return;fillInfo(t.dataPoints[0].dataIndex)}}:{filter:function(c){return c.datasetIndex<4},callbacks:{label:function(c){var i=c.dataIndex,k=c.datasetIndex,val=v[i][keys[k]],cost=ckT[k],pl=val-cost;return [names[k]+': '+c.parsed.y.toFixed(1)+' ('+sg(pl)+Math.abs(pl/cost*100).toFixed(2)+'%)','   Cost '+B+f(cost,0)+'  |  P/L '+sg(pl)+B+f(Math.abs(pl),0)+' / '+sg(pl)+'$'+f(Math.abs(pl/RATE),2)]}}}},scales:{x:opt.scales.x,y:{title:{display:true,text:'% of cost basis (100 = break-even)'},ticks:{font:{size:10}}}}}});
+ if(touch)fillInfo(v.length-1);
 }
 var tabs=document.querySelectorAll('.tab');
 tabs.forEach(function(b){b.addEventListener('click',function(){tabs.forEach(function(x){x.classList.remove('on')});b.classList.add('on');build(b.getAttribute('data-r'))})});
