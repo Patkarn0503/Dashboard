@@ -1,0 +1,31 @@
+name: Update portfolio
+
+on:
+  schedule:
+    - cron: "0 3,13 * * *"      # 10:00 and 20:00 Bangkok time (UTC+7)
+  workflow_dispatch:             # "Run workflow" button (works from the GitHub mobile app too)
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Update sheet + dashboard
+        run: python tracker.py
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+      - name: Commit dashboard
+        run: |
+          git config user.name "portfolio-bot"
+          git config user.email "portfolio-bot@users.noreply.github.com"
+          git add docs/index.html
+          git diff --cached --quiet || (git commit -m "Update dashboard" && git push)

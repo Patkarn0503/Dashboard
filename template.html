@@ -1,0 +1,115 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Portfolio Dashboard</title></head><body style="margin:0;padding:12px;background:#fff"><style>:root{color-scheme:light}
+*{box-sizing:border-box}
+.dash{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#eef1f5;border-radius:18px;padding:22px;color:#222}
+.dash h1{font-size:22px;font-weight:500;margin:0 0 14px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.fbox{background:#fff;border-radius:6px;padding:6px 12px;font-size:12px;color:#666;min-width:130px}.fbox b{display:block;font-weight:400;font-size:13px;color:#222;margin-top:2px}
+.tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tab{font-size:12px;padding:6px 12px;border-radius:8px;border:1px solid #d5d9e0;background:#fff;cursor:pointer;color:#333}.tab.on{background:#2e86de;color:#fff;border-color:#2e86de}
+.grid{display:grid;grid-template-columns:240px 1fr 1fr;gap:14px}
+.card{background:#fff;border-radius:12px;padding:14px 16px}
+.card h3{font-size:13px;font-weight:400;color:#555;margin:0 0 8px}
+.kpi{text-align:center;display:flex;flex-direction:column;justify-content:center;min-height:140px}
+.kpi .v{font-size:30px;font-weight:700;color:#333;margin:6px 0 2px}.kpi .d{font-size:13px}.kpi .s{font-size:11px;color:#777;margin-top:6px}
+.up{color:#1a7f37}.dn{color:#c0392b}.fl{color:#6b6b68}
+.left{display:flex;flex-direction:column;gap:14px;grid-row:span 2}
+.bk .r{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0f2f5}
+.bk .r span:first-child{color:#555;display:flex;align-items:center;gap:6px}.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.bk .t{display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding-top:8px}
+.ch{position:relative;height:220px}.wide{grid-column:2 / span 2}
+.acards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.gc{background:#fff;border-radius:12px;padding:14px 16px;text-align:center}
+.gc .n{font-size:13px;color:#555;display:flex;align-items:center;justify-content:center;gap:6px}
+.gc .gw{position:relative;height:120px}.gc .big{font-size:26px;font-weight:700;margin-top:-6px}
+.gc .row{font-size:12px;color:#555;display:flex;justify-content:space-between;margin-top:4px}.gc .row b{color:#222;font-weight:500}
+.gc .cap{font-size:10px;color:#888;display:flex;justify-content:space-between;margin-top:-4px}
+.note{font-size:11px;color:#777;margin-top:12px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.left{grid-row:auto}}
+</style>
+<div class="dash">
+<h1>Portfolio Dashboard</h1>
+<div class="filters">
+ <div class="fbox">Date range<b id="rl">Day (30d)</b></div>
+ <div class="tabs"><span style="font-size:12px;color:#666">Range:</span>
+  <button class="tab on" data-r="day">Day</button><button class="tab" data-r="week">Month (weekly)</button><button class="tab" data-r="month">Year (monthly)</button><button class="tab" data-r="all">All</button></div>
+</div>
+<div class="grid">
+ <div class="left">
+  <div class="card kpi"><h3>Total value</h3><div class="v" id="k1"></div><div class="d fl" id="k1u"></div></div>
+  <div class="card kpi"><h3>Overall profit / loss</h3><div class="v" id="k2"></div><div class="d" id="k2d"></div><div class="s" id="k2s"></div></div>
+  <div class="card bk"><h3>Profit / loss by asset (sums to total above)</h3><div id="bk"></div></div>
+ </div>
+ <div class="card"><h3>Change in value per period (&#3647;)</h3><div class="ch"><canvas id="c1"></canvas></div></div>
+ <div class="card"><h3>Portfolio allocation (latest value)</h3><div class="ch"><canvas id="c2"></canvas></div></div>
+ <div class="card wide"><h3>Total value vs cost basis (&#3647;)</h3><div class="ch" style="height:240px"><canvas id="c3"></canvas></div></div>
+ <div style="grid-column:1 / span 3"><div class="acards" id="acards"></div></div>
+ <div class="card" style="grid-column:1 / span 3"><h3>P/L by asset category, indexed to cost basis (100 = break-even) - hover for amounts</h3><div class="ch" style="height:320px"><canvas id="idx"></canvas></div></div>
+</div>
+<div class="note">__UPDATED__ Amounts are shown in THB (primary) with USD alongside; history is converted at the current rate (__RATE__ THB/USD) since daily rates are not stored. Cost basis from the sheet's COST BASIS section. Cash(THB) is always at par (P/L 0).</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script>
+(function(){
+var H0=__HIST__, CB0=__CB__;
+var RATE=CB0.rate;
+var CASH_T=CB0.cashThb;function toT(d){var g=d.gold*RATE,c=d.crypto*RATE,s=d.stablecoin*RATE,k=d.stocks*RATE;return {date:d.date,gold:g,crypto:c,stablecoin:s,stocks:k,cash:CASH_T,total:g+c+s+k+CASH_T}}
+var H=H0.map(toT);
+var ckT=CB0.costThb;
+var names=['Gold','Crypto','Stablecoin','Stocks'],keys=['gold','crypto','stablecoin','stocks'],cols=['#d4a017','#e67e22','#16a765','#2e86de'];
+var B='฿';
+function wk(s){var d=new Date(s+'T00:00:00Z'),t=new Date(d.valueOf()),n=(d.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-n+3);var f=t.valueOf();t.setUTCMonth(0,1);if(t.getUTCDay()!==4)t.setUTCMonth(0,1+((4-t.getUTCDay())+7)%7);return t.getUTCFullYear()+'-W'+String(1+Math.ceil((f-t)/604800000)).padStart(2,'0')}
+function mk(s){return s.slice(0,7)}
+function agg(a,fn,c){var g={},o=[];a.forEach(function(d){var k=fn(d.date);if(!(k in g))o.push(k);g[k]=d});return o.slice(-c).map(function(k){return g[k]})}
+function view(r){return r==='day'?H.slice(-30):r==='week'?agg(H,wk,30):r==='month'?agg(H,mk,12):agg(H,mk,60)}
+function f(n,d){return n.toLocaleString('en-US',{minimumFractionDigits:d||0,maximumFractionDigits:d||0})}
+function sg(n){return n>=0?'+':'-'}
+function cls(n){return Math.abs(n)<0.5?'fl':n>0?'up':'dn'}
+function tb(n){return B+f(Math.abs(n),0)}
+function ub(n){return '$'+f(Math.abs(n/RATE),2)}
+var ch={};
+function mkc(id,cfg){if(ch[id]){ch[id].destroy()}ch[id]=new Chart(document.getElementById(id).getContext('2d'),cfg)}
+var opt={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}}},scales:{x:{ticks:{font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{display:false}},y:{ticks:{font:{size:10},callback:function(x){return f(x,0)}}}}};
+var needle={id:'needle',afterDatasetsDraw:function(c2){var m=c2.getDatasetMeta(0).data[0],x=c2.ctx,cx=m.x,cy=m.y,r=m.outerRadius,vv=c2.config.options.plugins.needle.v;var lo=c2.config.options.plugins.needle.lo,hi=c2.config.options.plugins.needle.hi;var p=(Math.max(lo,Math.min(hi,vv))-lo)/(hi-lo),a=Math.PI+p*Math.PI;x.save();x.strokeStyle='#222';x.lineWidth=3;x.beginPath();x.moveTo(cx,cy);x.lineTo(cx+Math.cos(a)*(r-4),cy+Math.sin(a)*(r-4));x.stroke();x.fillStyle='#222';x.beginPath();x.arc(cx,cy,5,0,2*Math.PI);x.fill();x.restore()}};
+function build(r){
+ document.getElementById('rl').textContent={day:'Day (30d)',week:'Month (30 weeks)',month:'Year (12 months)',all:'All (max 60 months)'}[r];
+ var v=view(r),L=v.map(function(d){return d.date}),last=H[H.length-1],prev=v.length>1?v[v.length-2]:v[v.length-1],cur=v[v.length-1];
+ // P/L by asset (rounded so that rows add up exactly to the total)
+ var pls=names.map(function(n,i){return Math.round(last[keys[i]]-ckT[i])});
+ var totPL=pls.reduce(function(a,b){return a+b},0);
+ var costTot=ckT.reduce(function(a,b){return a+b},0)+CASH_T;
+ var dt=cur.total-prev.total;
+ document.getElementById('k1').textContent=B+f(cur.total,0);
+ document.getElementById('k1u').textContent='$'+f(cur.total/RATE,2);
+ var e;
+ document.getElementById('k2').textContent=sg(totPL)+B+f(Math.abs(totPL),0);document.getElementById('k2').className='v '+cls(totPL);
+ e=document.getElementById('k2d');e.textContent=(totPL>=0?'▲ ':'▼ ')+sg(totPL)+Math.abs(totPL/costTot*100).toFixed(2)+'%  ($'+sg(totPL)+f(Math.abs(totPL/RATE),2)+')';e.className='d '+cls(totPL);
+ document.getElementById('k2s').textContent='cost basis '+B+f(costTot,0);
+ var bk='';names.forEach(function(n,i){bk+='<div class="r"><span><i class="dot" style="background:'+cols[i]+'"></i>'+n+'</span><b class="'+cls(pls[i])+'">'+sg(pls[i])+B+f(Math.abs(pls[i]),0)+'</b></div>'});
+ bk+='<div class="r"><span><i class="dot" style="background:#a0a8b5"></i>Cash (THB)</span><b class="fl">'+B+'0</b></div><div class="t"><span>Total</span><span class="'+cls(totPL)+'">'+sg(totPL)+B+f(Math.abs(totPL),0)+'</span></div>';
+ document.getElementById('bk').innerHTML=bk;
+ // c1
+ var dd=v.map(function(d,i){return i?Math.round(d.total-v[i-1].total):0});
+ mkc('c1',{type:'bar',data:{labels:L,datasets:[{label:'Change',data:dd,backgroundColor:dd.map(function(x){return x>=0?'#6fb36f':'#e85a5a'})}]},options:Object.assign({},opt,{plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var x=c.parsed.y;return sg(x)+B+f(Math.abs(x),0)+'  ($'+sg(x)+f(Math.abs(x/RATE),2)+')'}}}}})});
+ // c2 doughnut
+ var cats=[['Gold','gold','#d4a017'],['Crypto','crypto','#e67e22'],['Stablecoin','stablecoin','#16a765'],['Stocks','stocks','#2e86de'],['Cash','cash','#a0a8b5']];
+ var tot5=cats.reduce(function(a,c){return a+last[c[1]]},0);
+ mkc('c2',{type:'doughnut',data:{labels:cats.map(function(c){return c[0]}),datasets:[{data:cats.map(function(c){return Math.round(last[c[1]])}),backgroundColor:cats.map(function(c){return c[2]}),borderColor:'#fff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){var x=c.parsed;return c.label+': '+B+f(x,0)+' ('+(x/tot5*100).toFixed(1)+'%)  $'+f(x/RATE,2)}}}}}});
+ // c3
+ mkc('c3',{type:'line',data:{labels:L,datasets:[{label:'Total value',data:v.map(function(d){return Math.round(d.total)}),borderColor:'#3a9a4a',backgroundColor:'#3a9a4a33',fill:true,tension:.35,pointRadius:2,borderWidth:2},{label:'Cost basis',data:L.map(function(){return Math.round(CB0.thb)}),borderColor:'#c0392b',borderDash:[6,4],fill:false,pointRadius:0,borderWidth:2}]},options:Object.assign({},opt,{plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+B+f(c.parsed.y,0)+'  ($'+f(c.parsed.y/RATE,2)+')'}}}}})});
+ // gauges
+ var html='';
+ var HW=Math.max.apply(null,[50].concat(names.map(function(n,q){return Math.ceil(Math.abs(last[keys[q]]/ckT[q]*100-100)*1.25/25)*25})));
+ names.forEach(function(n,q){var val=last[keys[q]],cost=ckT[q],pl=pls[q],c=cls(pl);var hw=HW;
+  html+='<div class="gc"><div class="n"><i class="dot" style="background:'+cols[q]+'"></i>'+n+'</div><div class="gw"><canvas id="gg'+q+'"></canvas></div><div class="cap"><span>-'+Math.min(hw,100)+'%</span><span></span><span>+'+hw+'%</span></div><div class="big '+c+'">'+sg(pl)+Math.abs(pl/cost*100).toFixed(2)+'%</div><div class="'+c+'" style="font-size:13px;margin-bottom:6px">'+sg(pl)+B+f(Math.abs(pl),0)+' ('+sg(pl)+'$'+f(Math.abs(pl/RATE),2)+')</div><div class="row"><span>Value</span><b>'+B+f(val,0)+' ($'+f(val/RATE,2)+')</b></div><div class="row"><span>Cost basis</span><b>'+B+f(cost,0)+' ($'+f(cost/RATE,2)+')</b></div></div>';});
+ document.getElementById('acards').innerHTML=html;
+ names.forEach(function(n,q){var vv=last[keys[q]]/ckT[q]*100,hw2=HW;mkc('gg'+q,{type:'doughnut',data:{labels:['below cost','above cost'],datasets:[{data:[Math.min(hw2,100),hw2],backgroundColor:['#f3b5b5','#b7dcb7'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,rotation:-90,circumference:180,cutout:'68%',plugins:{legend:{display:false},tooltip:{enabled:false},needle:{v:vv,lo:Math.max(0,100-hw2),hi:100+hw2}}},plugins:[needle]})});
+ // indexed line
+ var ds=names.map(function(n,i){return{label:n,data:v.map(function(d){return +(d[keys[i]]/ckT[i]*100).toFixed(2)}),borderColor:cols[i],backgroundColor:cols[i],tension:.3,pointRadius:2,pointHoverRadius:5,borderWidth:2}});
+ ds.push({label:'Break-even (100)',data:L.map(function(){return 100}),borderColor:'#7f8c8d',borderDash:[6,4],pointRadius:0,borderWidth:2,fill:false});
+ mkc('idx',{type:'line',data:{labels:L,datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:11}}},tooltip:{filter:function(c){return c.datasetIndex<4},callbacks:{label:function(c){var i=c.dataIndex,k=c.datasetIndex,val=v[i][keys[k]],cost=ckT[k],pl=val-cost;return [names[k]+': '+c.parsed.y.toFixed(1)+' ('+sg(pl)+Math.abs(pl/cost*100).toFixed(2)+'%)','   Cost '+B+f(cost,0)+'  |  P/L '+sg(pl)+B+f(Math.abs(pl),0)+' / '+sg(pl)+'$'+f(Math.abs(pl/RATE),2)]}}}},scales:{x:opt.scales.x,y:{title:{display:true,text:'% of cost basis (100 = break-even)'},ticks:{font:{size:10}}}}}});
+}
+var tabs=document.querySelectorAll('.tab');
+tabs.forEach(function(b){b.addEventListener('click',function(){tabs.forEach(function(x){x.classList.remove('on')});b.classList.add('on');build(b.getAttribute('data-r'))})});
+build('day');
+})();
+</script></body></html>
