@@ -2,7 +2,7 @@ name: Update portfolio
 
 on:
   schedule:
-    - cron: "0 3,13 * * *"      # 10:00 and 20:00 Bangkok time (UTC+7)
+    - cron: "0 23,5,11 * * *"      # 10:00 and 20:00 Bangkok time (UTC+7)
   workflow_dispatch:             # "Run workflow" button (works from the GitHub mobile app too)
 
 permissions:
